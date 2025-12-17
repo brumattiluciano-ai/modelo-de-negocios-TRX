@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Simulador negocios TRX</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<style>
+body{
+  font-family:'Poppins', sans-serif;
+  background:#f0fdf4;
+  padding:16px;
+}
+
+.container{max-width:1400px;margin:auto}
+h1{font-size:32px;color:#166534;margin-bottom:8px}
+h2{color:#166534;margin-top:0}
+
+.section{
+  background:white;
+  border-radius:16px;
+  padding:20px;
+  box-shadow:0 8px 20px rgba(0,0,0,.08);
+  margin-bottom:24px;
+}
+
+input,select{
+  padding:8px;
+  border-radius:8px;
+  border:1px solid #ccc;
+  width:100%;
+  box-sizing:border-box;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:13px;
+}
+
+th,td{
+  border-bottom:1px solid #eee;
+  padding:8px;
+  text-align:center;
+}
+
+th{background:#f3f4f6}
+td.left{text-align:left}
+
+.kpi{font-size:20px;font-weight:700;color:#166534}
+
+.decision{
+  margin-top:16px;
+  padding:16px;
+  border-radius:14px;
+  font-size:20px;
+  font-weight:700;
+  text-align:center;
+}
+
+.green{background:#dcfce7}
+.red{background:#fee2e2}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px){
+
+  table thead{
+    display:none;
+  }
+
+  table, tbody, tr, td{
+    display:block;
+    width:100%;
+  }
+
+  tr{
+    margin-bottom:16px;
+    border:1px solid #e5e7eb;
+    border-radius:12px;
+    padding:12px;
+    background:#fff;
+  }
+
+  td{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    border:none;
+    padding:6px 0;
+    text-align:left;
+  }
+
+  td::before{
+    content: attr(data-label);
+    font-weight:600;
+    color:#166534;
+    margin-right:12px;
+    flex:1;
+  }
+
+  td > *{
+    flex:1;
+  }
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<h1>Simulador negocios TRX</h1>
+
+<div class="section">
+<h2>Escenario</h2>
+
+<select id="modelo">
+  <option value="cv">Compra–Venta</option>
+  <option value="int">Intermediación</option>
+</select>
+
+<input id="iibbPct" type="number" value="3" placeholder="IIBB %">
+<input id="marketing" type="number" placeholder="Marketing mensual">
+<input id="fijos" type="number" placeholder="Costos fijos anuales">
+</div>
+
+<div class="section">
+<h2>Portafolio de productos</h2>
+
+<table>
+<thead>
+<tr>
+<th>Producto</th>
+<th>Condición</th>
+<th>Estrategia comisión</th>
+<th>% aplicado</th>
+<th>Precio</th>
+<th>Costo</th>
+<th>Flete</th>
+<th>Acond.</th>
+<th>Leads</th>
+<th>Cotizaciones</th>
+<th>Ventas / mes</th>
+<th>Resultado anual</th>
+</tr>
+</thead>
+<tbody id="tabla"></tbody>
+</table>
+</div>
+
+<div class="section">
+<h2>Resultado consolidado</h2>
+
+<p>Facturación anual: <span class="kpi">$ <span id="fact"></span></span></p>
+<p>Margen bruto: <span class="kpi">$ <span id="margen"></span></span></p>
+<p>IIBB: <span class="kpi">$ <span id="iibb"></span></span></p>
+<p>Resultado operativo: <span class="kpi">$ <span id="res"></span></span></p>
+
+<div id="decision" class="decision"></div>
+</div>
+
+</div>
+
+<script>
+const catalogo = {
+  "Tractores": {nuevo:1.5, usado:2},
+  "Cosechadoras": {nuevo:1.5, usado:2},
+  "Pulverizadoras": {usado:2},
+  "Sembradoras": {nuevo:2, usado:1.5},
+  "Casillas": {nuevo:10},
+  "Desmalezadoras": {nuevo:10},
+  "Tecnología para el agro": {nuevo:3},
+  "Multi producto": {nuevo:10}
+};
+
+const productos = Object.keys(catalogo);
+const filas = 8;
+const tabla = document.getElementById("tabla");
+
+function fmt(n){return Math.round(n).toLocaleString("es-AR");}
+
+for(let i=0;i<filas;i++){
+  tabla.innerHTML += `
+<tr>
+<td data-label="Producto">
+  <select id="prod${i}">
+    ${productos.map(p=>`<option>${p}</option>`).join("")}
+  </select>
+</td>
+<td data-label="Condición">
+  <select id="cond${i}">
+    <option value="nuevo">Nuevo</option>
+    <option value="usado">Usado</option>
+  </select>
+</td>
+<td data-label="Estrategia">
+  <select id="nivel${i}">
+    <option value="min">Conservadora</option>
+    <option value="std" selected>Estándar</option>
+    <option value="max">Agresiva</option>
+  </select>
+</td>
+<td data-label="% aplicado"><span id="pct${i}">0 %</span></td>
+<td data-label="Precio"><input id="precio${i}" type="number"></td>
+<td data-label="Costo"><input id="costo${i}" type="number"></td>
+<td data-label="Flete"><input id="flete${i}" type="number"></td>
+<td data-label="Acond."><input id="acond${i}" type="number"></td>
+<td data-label="Leads"><input id="leads${i}" type="number"></td>
+<td data-label="Cotizaciones"><input id="cot${i}" type="number"></td>
+<td data-label="Ventas / mes"><input id="ventas${i}" type="number"></td>
+<td data-label="Resultado">$ <span id="res${i}">0</span></td>
+</tr>`;
+}
+
+function calc(){
+let fact=0, margen=0;
+
+for(let i=0;i<filas;i++){
+  const prod = document.getElementById(`prod${i}`).value;
+  const cond = document.getElementById(`cond${i}`).value;
+  const nivel = document.getElementById(`nivel${i}`).value;
+
+  const base = catalogo[prod][cond] || 0;
+  let factor = nivel==="min"?0.8:nivel==="max"?1.3:1;
+  const pct = base*factor;
+  document.getElementById(`pct${i}`).innerText = pct.toFixed(1)+" %";
+
+  const precio = +document.getElementById(`precio${i}`).value||0;
+  const costo = +document.getElementById(`costo${i}`).value||0;
+  const flete = +document.getElementById(`flete${i}`).value||0;
+  const acond = +document.getElementById(`acond${i}`).value||0;
+  const ventas = +document.getElementById(`ventas${i}`).value||0;
+
+  const comision = precio*pct/100;
+  const costoTotal = costo+flete+acond;
+  const margenUnit = modelo.value==="cv" ? precio-costoTotal-comision : comision;
+  const res = ventas*12*margenUnit;
+
+  document.getElementById(`res${i}`).innerText = fmt(res);
+
+  fact += ventas*12*precio;
+  margen += res;
+}
+
+const iibb = ((modelo.value==="cv"?fact:margen)*(+iibbPct.value||0))/100;
+const resFinal = margen-(+marketing.value||0)*12-(+fijos.value||0)-iibb;
+
+fact.innerText=fmt(fact);
+margen.innerText=fmt(margen);
+iibb.innerText=fmt(iibb);
+res.innerText=fmt(resFinal);
+
+decision.className = "decision "+(resFinal>0?"green":"red");
+decision.innerText = resFinal>0?"ESCALAR":"DETENER";
+}
+
+document.querySelectorAll("input,select").forEach(e=>e.addEventListener("input",calc));
+calc();
+</script>
+
+</body>
+</html>
